@@ -1,0 +1,162 @@
+---
+title: 'STAT 353: Homework 1 (Review)'
+author: "Zeqiu.Yu"
+date: "Jan 10th, 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this homework, you will review OLS regression. The concepts focused on here are obviously not all of what you know (from STAT 350), but they are concepts that are particularly important for this course. Pay particular attention to interpretation.
+
+# Data for this assignment
+
+For this assignment, we are using the `Duncan` dataset. This dataset provides data on the prestige and other characteristics of 45 U. S. occupations in 1950. The data was collected by the sociologist [Otis Dudley Duncan](https://en.wikipedia.org/wiki/Otis_Dudley_Duncan).
+
+# Preliminaries
+
+As a first step, we load the **car** package. This is the package developed by the author of our textbook and contains several useful functions and datasets, so we will be using it throughout this quarter.
+
+Begin by examining the first few rows of the `Duncan` data:
+
+```{r}
+library("car") # load car and carData packages
+head(Duncan, n=10)
+dim(Duncan)
+```
+
+Obtain summary statistics for the variables in `Duncan`:
+
+```{r}
+summary(Duncan)
+```
+
+As a first graph, we view a histogram of the variable `prestige`:
+
+```{r, fig.width=5, fig.height=5}
+with(Duncan, hist(prestige))
+```
+
+## 1. Examining the Data
+
+A first step for any analysis should include Exploratory Data Analysis (EDA). This allows you to check to see that you understand the variables - how they are coded, if they are factors or continuous, and if there are mistakes.
+
+The `scatterplotMatrix()` function in the **car** package produces scatterplots for all pairs of variables. A few relatively remote points are marked by case names, in this instance by occupation.
+
+```{r fig.height=8, fig.width=8}
+scatterplotMatrix(Duncan)
+```
+
+Via the scatterplots above - and any other EDA you'd like to do - describe the data. What seems to be going on here?
+
+#Answer here  
+Income and  Education, Education and prestige, Income and prestige seem to have strong linear reletaionship. 
+
+## 2. Regression Analysis
+
+**A. Model 1**
+
+Use the`lm()` function to fit a linear regression model to the data, in which `education` and `income` are regressed on `prestige`.
+
+Interpret the findings from this model. Are education and income good explanations for an occupation's prestige? Interpret the coefficient for income - what does it mean? Does education or income have a larger effect on prestige? Justify your conclusion.
+
+#Answer here  
+Yes. Because the $R^2 = 0.8282$ and the  adjusted $R^2 = 0.82$, they are all close to 1. In addition, the p-value is very small, the coefficients are significant statistically.  
+Fix education, 1-unit increase in income is estimated to cause 0.59873 increase in prestige. In the same way, fix income, 1-unit increase in education is estimated to cause 0.54583 increase in prestige.  
+0.54583 is less than 0.59873, the income has larger effect on prestige.
+
+
+
+```{r}
+fit <- lm(prestige~education+income, data=Duncan)
+summary(fit)
+```
+
+
+**B. Model 2**
+
+Now, add in the `type` of occupation to the model. Is the model with `type` a better model? Explain what statistics you would use to make this decision, conduct the analysis, and interpret the results.
+
+#Answer her  
+For the reduced and the Full model, we use anova table to analysis. $H_0:$ the coefficient of "Type" is 0.  $H_a:$ the coefficient of "Type"  is not zero. The p-value is 1.208e-06 too small. We accept $H_a.$ We should add "Type" into the model.
+
+```{r}
+fit1 <- lm(prestige~education+income+type, data=Duncan)
+anova(fit, fit1)
+
+```
+
+
+## 3. Regression Diagnostics
+
+**A. Non-normality**
+
+The `rstudent()` function returns studentized residuals, and the `densityPlot()` function fits an adaptive kernel density estimator to the distribution of the studentized residuals. A `qqPlot()` can be used as a check for nonnormal errors, comparing the studentized residuals to a t-distribution.
+
+Use these to examine the results of your best model from Question 2. What do you conclude?
+
+#Answer here  
+The densityPlot skew right and the qqPLot shows they almost distribute along the straight line but two outliers. Hence, the residuals are normally distributed.
+
+```{r fig.height=5, fig.width=5}
+res <- rstudent(fit1)
+par(mfrow=c(1,2))
+densityPlot(res)
+qqPlot(res)
+
+```
+
+**B. Influence = outliers\*leverage**
+
+The `outlierTest()` function tests for outliers in the regression. The `influenceIndexPlot()` function creates a graph that displays influence measures in index plots. The `avPlots()` function creates added variable plots, which allow you to visualize how influential data points might be affecting (or not) the estimated coefficients.
+
+Using these (and/or other tools), using your preferred model from Question 2, are there any influential data points?
+
+If the diagnostics suggest that there are influential points, does removing these influential points change the results of the analysis? Compare models using the `compareCoefs()` function. What do you conclude?
+
+#Answer here  
+Minister is an influential point, using comPareCoefs(), remove it will not cause big changes. The minister point can be removed.
+
+```{r}
+outlierTest(fit1)
+influenceIndexPlot(fit1)
+avPlots(fit1)
+Duncan1 <- Duncan[-which(rownames(Duncan)=='minister'),]
+fit2 <- lm(prestige~education+income+type, data=Duncan1)
+compareCoefs(fit1, fit2)
+```
+
+**C. Non-linearity**
+
+Component-plus-residual plots allow for the detection of non-linearity in the partial relationship between each covariate and the outcome. These can be created using the `crPlots()` function.
+
+For your preferred model, does it appear there is any nonlinearity? Explain.
+
+#Answer here  
+Component-plus-residual plots show nearly straight lines, it does not seem to be nonlinearity.  
+
+```{r fig.height=4, fig.width=8}
+crPlots(fit2)
+```
+
+**D. Heteroscedasticity**
+
+Non-constant error variance can be tested using the `ncvTest()` function.
+
+Does it appear that this is a concern with this data? Explain
+
+#Answer here  
+The p-value is too larg, which leads us to fail to reject the null hypothsis that there is a onstant error variance.
+
+```{r}
+ncvTest(fit2)
+```
+
+## 4. Interpretation
+
+Should the model above be used to answer a descriptive, explanatory, or predictive question? Explain your answer.
+
+#Answer here  
+I think it can be used to answer descriptive and predictive questions. It can be used to find whether there is a linear relationship between the variables, it is about the relationship, so it can be used to answer a descriptive model. In addition, regression models can be used to predict within a particular range. Hence, it can also be used to answer predictive questions. As for explanatory questions, the regression models doesn't reflect causal information. Hence, it can not be used to answer explanatory questions

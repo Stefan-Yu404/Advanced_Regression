@@ -1,0 +1,255 @@
+---
+title: "STAT353 HW2 GLM"
+author: "Zeqiu.Yu"
+date: "date"
+output: html_document
+---
+
+## Handwork
+
+*My policy on handwork is that it is required for Statistics PhD students and MS in Statistics students. It is encouraged (but not required) for MS in Applied Statistics and all other students. (If you are the latter, you will not get penalized if you get these wrong ... )*
+
+Exercises from the book: 14.1, 14.3, 14.6, 15.2, 15.4.
+
+### 14.1  
+```{r, echo = TRUE, eval = TRUE, warning = TRUE, result = TRUE,include = TRUE}
+piValues <- c(0.001, 0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 0.95, 0.99, 0.999)
+table <- data.frame(piValues, round(piValues*(1-piValues),6))
+names(table) <- c("pi","Variance of the error")
+table
+```
+I find that the heteroscedasticity is serious when $\pi$ is close to 0 and 1. Also, when $\pi$ is between 0.3 and 0.7, the variance of error is much more steady.  
+   
+### 14.3  
+\[\frac{d\pi}{dx} = \frac{\beta*e^{-(\alpha + \beta x)}}{(1 + e^{-(\alpha + \beta x)})^2}\]
+Lt $u = e^{-(\alpha + \beta x)}, u = \frac{1}{\pi} - 1$, and 
+\[\frac{d\pi}{dx} = \frac{\beta*u}{(1 + u)^2} = \beta*(\frac{1}{\pi} - 1)*\pi^2 = \beta\pi(1-\pi)\]
+Hence, the slope is $\beta\pi(1-\pi)$.  
+  
+### 14.6  
+\[L(\pi, Y) = \Pi_{i= 1}^n \pi_i^{y_i}(1-\pi_i)^{1-y_i}, after\;\; log,\;\; l = LogL(\pi,Y) = \sum_{i=1}^{n}y_ilog(\pi_i) + (1-y_i)log(\pi_i)\]  
+Replace $\pi_i$ with $P_i$, the proof is done.  
+  
+  
+### 15.2  
+(a.)  p(0) = $\pi_i + (1-\pi_i)e^{-\mu_i}$, and p($y_i$) = $(1-\pi_i)\frac{\mu_i^{y_i}e^{-\mu_i}}{y_i!}$.  
+Then \[E(y_i) = 0*p(0) + \sum_{y_i=1}^{\infty}(1-\pi_i) y_i*p(y_i) = (1-\pi_i)e^{-\mu_i}\sum_{y_i=1}^{\infty}\frac{y_i}{y_i!}\mu_i^{y_i} = \]
+\[=(1-\pi_i)e^{-\mu_i}\mu_i\sum_{y_i=0}^{\infty}\frac{\mu_i^{y_i}}{y_i!}\]. The series is the expansion of $e^x$. That is$(1-\pi_i)e^{-\mu_i}\mu_ie^{\mu_i} = (1-\pi_i)\mu_i$  
+  
+\[E(Y_i^2) =(1-\pi_i)\sum_{y_i=1}^{\infty} y_i^2*p(y_i) = (1-\pi_i)e^{-\mu_i}\mu_i(\sum_{y_i=0}^{\infty}\frac{\mu_i^{y_i}}{y_i!}*\mu_i + \frac{\mu_i^{y_i}}{y_i!}) = (1-\pi_i)\mu_i^2 + (1-\pi_i)\mu_i\]  
+
+Var(Y_i) = $E(Y_i^2) - E(Y_i)^2 = (1-\pi_i)\mu_i(1+\pi_i\mu_i)$ acocording to the equations above.  
+(b.) \[L(\beta,\gamma) = \Pi_{y_i=0}(\pi_i + (1-\pi_i)e^{-\mu_i})\Pi_{y_i>0}(1-\pi_i)\frac{\mu_i^{y_i}e^{-\mu_i}}{y_i!}\], and $\pi_i = \frac{exp(z_i^{'}\gamma)}{1+ exp(z_i^{'}\gamma)}$, $\mu_-i = exp(z_i^{'}\beta)$. Then we have:
+\[L(\beta,\gamma) = \Pi_{y_i=0}(exp(z_i^{'}\gamma) + exp(-exp(x_i^{'}\beta))* \Pi_{i=1}^n\frac{1}{1+exp(z_i^{'}\gamma)}\Pi_{y_i>0}\frac{exp(x_i^{'}\beta)^{y_i} - exp(-exp(x_i^{'}\beta))}{y_i!}\] Take log and we get the log-likelihood:
+\[l = LogL(\beta, \gamma) = \sum_{y_i=0}log(exp(z_i^{'}\gamma) + exp(-exp(x_i^{'}\beta))- \sum_{i=1}^nlog(1+exp(z_i^{'}\gamma)) + \sum_{y_i>0}(log(exp(x_i^{'}\beta)^{y_i} - exp(-exp(x_i^{'}\beta))) - log(y_i!))\]
+
+(c.)  
+According to (a), we have
+\[p(y_i;\beta,\gamma) = \pi_i + (1- \pi_i)\frac{w^w}{(\mu_i+w)^w} =  \frac{exp(z_i^{'}\gamma) + \frac{w^w}{(\mu_i+w)^w}}{ 1+  exp(z_i^{'}\gamma)}, y_i = 0\]
+\[p(y_i;\beta,\gamma) = \frac{1}{1+  exp(z_i^{'}\gamma)}\frac{T(y_i+w)}{y_i!T(w)}\frac{\mu_i^{y_i}w^w}{(\mu_i+w)^w}, y_i >0\]
+Above all, we get:
+\[LogL(\beta,\gamma) = \sum_{y_i=0}log(exp(z_i^{'}\gamma) + \frac{w^w}{(exp(x_i^{'}\beta))^w}) - \sum_{i=1}^nlog(1+exp(z_i^{'}\gamma)) - \sum_{y_i>0}log(y_i!) + \sum_{y_i>0}(log\frac{T(y_i+w)}{T(w)}+y_ix_i^{'}\beta - wlog(\frac{1}{w}exp(x_i^{'}\beta)+1))\]
+
+## Data analysis
+
+### **1. Exercise D14.1 (Dichotomous)**
+
+For this question, we will use the `Chile.txt` dataset, which has a polytomous outcome: voting intention (yes, no, abstain, undecided). For this problem, focus only on the subset of the data with outcomes of either 'yes' or 'no'.
+
+(a) Formulate a model that makes substantive sense in the context of the data set - for example,constructing dummy regressors to represent factors and including interaction regressors where these are appropriate - and fit a linear logistic regression of the response variable on the explanatory variables, reporting the estimated regression coefficients and their asymptotic standard errors.
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, result = FALSE,include = TRUE}
+# Load the packages and data
+library(faraway)
+library(arm)
+library(MASS)
+library(brant)
+library(effects)
+library("car")
+
+Chile = na.omit(Chile)
+part_chile_set = Chile[Chile$vote %in% c("Y", "N"), ]
+```
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, result = TRUE,include = TRUE}
+# Fit the model
+fit_logit <- glm(vote ~ age + sex + education + income + statusquo, data = part_chile_set, family = binomial(link = "logit"))
+summary(fit_logit)
+```
+From the summary table, we can find the coefficients for age, sex of Male, eduPs. eduS, income status-quo are `r fit_logit$coefficients[2:7]` respectively, and corresponding asymptotic standard errors are `r sqrt(diag(vcov(fit_logit)))[2:7]`.  
+  
+(b) Construct an analysis-of-deviance table for the model fit in part (a).
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, result = TRUE,include = TRUE}
+anova(fit_logit, test="Chisq")
+```
+  
+  
+(c) Fit a final model to the data that includes the statistically significant effects. Construct an effect display for each high-order term in the model. If the model is additive, (i) suggest two interpretations of each estimated coefficient; and (ii) construct likelihood-ratio-based 95- percent confidence intervals for the regression coefficients, comparing these with confidence intervals based on the Wald statistic.
+
+According to (a), (b), I decide to use the model below as my final model.
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, result = TRUE,include = TRUE}
+final <- glm(vote ~ sex + statusquo + education, data = part_chile_set, family = binomial(link = "logit"))
+contrast <- glm(vote ~ sex + statusquo + education + education * sex, data = part_chile_set, family = binomial(link = "logit"))
+anova(final, contrast,test = "Chisq")
+summary(final)
+plot(allEffects(final))
+
+exp(final$coefficients) # odds ratio
+```
+The p-value 0.05561 is not significant for the interaction term, and I will not include this interaction term in the final model.
+For the interpretation:  
+(1.) According to the effect plots, female has a higher expected probability of voting for Pinochet. In addition, people with a primary education have a larger expected probability of voting for Pinochet  than people with a secondary and than people with a post-secondary. As the status-quo increases, the probability of voting for Pinochet increases greatly, which is consistent with results of our model.  
+
+Using odds ratio, when the other coefficients are 0, the odds of voting for Pinochet is 2.760. When other coefficients remain the same, the odds of voting for Pinochet by male is 0.563x smaller, having a 43.7% reduction in the odds. When other coefficients remain the same, the odds of voting for Pinochet is 23.8x larger with 1 increase in the status-quo.For those with a post secondary education level, the odds of voting for Pinochet is 0.33x smaller, i.e., a 67% reduction in the odds. For those with a secondary education level, the odds of voting for Pinochet is 0.505x smaller, i.e., a 49.5% reduction in the odds.
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, result = TRUE,include = TRUE}
+# likelihood ratio(CIs)
+Confint(final)
+# Wald Statistics(CIs)
+confint.default(final)
+```
+(d) Fit a probit model to the data, comparing the results to those obtained with the logit model. Which do you think is better? Why?
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, result = TRUE,include = TRUE}
+finalProbit = glm(factor(vote) ~ sex + statusquo + education, data = part_chile_set, family = binomial(link = "probit"))
+summary(finalProbit)
+
+```
+I think the logit is better according to the AIC score, 718.24 is a little bit smaller than 718.9, and the coefficients of logit models are more interpretable than the probit's. 
+  
+### **2. Exercise D14.2 (Polytomous outcome)**
+
+Proceed as in Exercise D14.1, but now include all of the data and the four possible outcome values.
+
+Use, as appropriate, one or more of the following: a multinomial logit model; a proportional odds logit model; logit models fit to a set of nested dichotomies; or similar probit models. If you fit the proportional-odds model, test the assumption of parallel regressions. If you fit more than one kind of model, which model do you prefer? Why?
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, result = TRUE,include = TRUE}
+# multinomial logit model
+library(nnet)
+fit_mn <- multinom(as.factor(vote) ~ sex + education + statusquo, data = Chile)
+summary(fit_mn)
+# proportional odds logit model
+fit_pol <- polr(factor(vote) ~ sex + education + statusquo , data = Chile)
+summary(fit_pol)
+poTest(fit_pol)
+```
+I use multinomial logit model and proportional ratio logit models, and I prefer multinomial logit model.  
+For the parallel regression assumption test, since all the p-values are less than 0.05, we reject the null hypothesis that there is a parallel regression. Hence, the proportional odds model is not appropriate here. In addition, when we compare the deviance between these two models, multinomial logit model has a smaller deviance (4069.1 < 4577.314 as shown in two summary tables above). Hence, the nested model doesn’t works well too. Moreover, there are not nested dichotomies in the vote, since the vote has 4 levels( A: will abstain; N: will vote no (against Pinochet); U: undecided; Y: will vote yes (for Pinochet)).  
+
+### **3. Exercise D15.3 (GLM Diagnostics)**
+
+Return to the logit (and probit) model that you fit in Exercise D14.1.
+
+(a) Use the diagnostic methods for generalized linear models described in this chapter to check the adequacy of the final model that you fit to the data.
+
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, result = TRUE,include = TRUE}
+influenceIndexPlot(final, vars = c("Cook","hat"))
+compareCoefs(final, update(final, subset=-c(1000,1560)))
+# remove influential points
+compareCoefs(final, update(final, subset=-c(1000,1560)))
+```
+From the diagnostic Plots, we can find two influential points ,and after checking and comparing the coefficients, I find the existence of these two points will not have a large change to the result and analysis.  
+```{r, echo = TRUE, eval = TRUE, warning = FALSE, result = TRUE,include = TRUE}
+LinearPred<-predict(final)
+DevianceRes<-residuals(final)
+binnedplot(LinearPred, DevianceRes,xlab="Linear Predictor",ylab="Average Residual",main="Binned Deviance Residual Plot")
+```  
+Then from the Binned Deviance Residual Plot, we can find that the assumption of linearity and constant variance still holds. Hence, it is a good model.  
+
+(b) If the model contains a discrete quantitative explanatory variable, test for nonlinearity by specifying a model that treats this variable as a factor (e.g., using dummy regressors), and comparing that model via a likelihood-ratio test to the model that specifies that the variable has a linear effect. (If there is more than one discrete quantitative explanatory variable, then begin with a model that treats all of them as factors, contrasting this with a sequence of models that specifies a linear effect for each such variable in turn.) Note that this is analogous to the approach for testing for nonlinearity in a linear model with discrete explanatory variables described in Section 12.4.1.
+
+```{r}
+test1 = glm(vote ~ statusquo + education + population, family = binomial, data = Chile)
+test2 = glm(vote ~ statusquo + education + as.factor(population), family = binomial, data = Chile)
+
+anova(test1, test2, test = "Chisq")
+```
+I think these both options work because the p-values shown in anova table are large.  
+  
+(c) Explore the use of the log-log and complementary-log-log links as alternatives to the logit link for this regression. Comparing deviances under the different links, which link appears to best represent the data?
+
+```{r}
+cloglog_model = glm(vote ~ sex + statusquo + education, family = binomial(link = "cloglog"), data = part_chile_set)
+final$deviance
+cloglog_model$deviance
+finalProbit$deviance
+```
+After comparing the deviance, I think logistic link is better among logistic, cloglog and probit. Hence, logistic appears to best represent the data.
+### **4. Exercise D15.1 (Count data)**
+
+Long (1990, 1997) investigates factors affecting the research productivity of doctoral students in biochemistry. Long's data (on 915 biochemists) are in the file `Long.txt`. The response variable in this investigation, `art`, is the number of articles published by the student during the last three years of his or her PhD programme.
+
+The explanatory variables are as follows:
+
+| Variable name | Definition                                                     |
+|---------------|----------------------------------------------------------------|
+| fem           | Gender: dummy variable - 1 if female, 0 if male                |
+| mar           | Maritial status: dummy variable - 1 if married, 0 if not       |
+| kid5          | Number of children five years old or younger                   |
+| phd P         | restige rating of PhD department                               |
+| ment          | Number of articles published by mentor during last three years |
+
+: *Explanatory variables in \`long.txt\` data*
+
+(a) Examine the distribution of the response variable. Based on this distribution, does it appear promising to model these data by linear least-squares regression, perhaps after transforming the response? Explain your answer.
+
+```{r}
+long <- read.table("./Datasets/Long.txt")
+model_fit4a <- lm(art ~ fem + mar + kid5 + phd + ment, data = long)
+summary(model_fit4a)
+hist(long$art)
+hist(log(long$art))
+```
+We can find the distribution in log-histogram is discrete and skewed, and the distribution is likely to be a Poisson and the linear least squares regression may not be appropriate.
+(b) Following Long, perform a Poisson regression of art on the explanatory variables. What do you conclude from the results of this regression?
+
+```{r}
+model_fit4b <- glm(art ~ fem + mar + kid5 + phd + ment, family = "poisson", data = long)
+summary(model_fit4b)
+```
+The coefficients phd is not significant and the p-value is high, it may not be relevant.  
+Interpretations to the statistically significant coefficients using Divide by 4 rule: 1/4:  
+The coefficient Intercept: $exp(\hat{\beta}_0)$=1.3561083 means that the odds of articles published by the student are 1.3561083, when the scale of fem, mar, kid5, phd and ment are all 0 unit. 
+
+The coeffciient fem: $exp(\hat{\beta}_1)$=0.7988403 means that the Number of articles published by the student will be 0.7988403 times smaller, when Variable fem decrease by 1 unit, and when mar, kid5, phd and ment are fixed. 
+
+The coefficient mar: $exp(\hat{\beta}_2)$=1.1679420 means that the Number of articles published by the student are 1.1679420 times bigger, when Variable mar increase by 1 unit, and when fem, kid5, phd and ment are fixed. 
+
+The coefficient kid5: $exp(\hat{\beta}_3)$=0.8312018 means that of Number of articles published by the student are 0.8312018 times smaller, when  Variable kid5 decrease by 1 unit, and when fem, mar, phd and ment are fixed. 
+
+The coefficient phd: $exp(\hat{\beta}_4)$=1.0129045 means that the Number of articles published by the student are 1.0129045 units bigger, when Variable phd increase by 1 unit, and when fem, mar, kid5 and ment are fixed.
+
+The coefficient ment: $exp(\hat{\beta}_5)$=1.0258718 means that the Number of articles published by the student are 1.0258718 units bigger, when Variable ment increase by 1 unit, and when fem, mar, kid5 and phd are fixed.
+
+
+
+(c) Perform regression diagnostics on the model fit in the previous question. If you identify any problems, try to deal with them. Are the conclusions of the research altered?
+
+```{r}
+residualPlots(model_fit4b, layout = c(1,3))
+infIndexPlot(model_fit4b, var = c("cook","hat"))
+# We find 186 and 467
+compareCoefs(model_fit4b, update(model_fit4b, subset = -c(186,467)))
+crPlots(model_fit4b)
+```
+We have following conclusions: 1. the residual plots for all predictor variables except ‘ment’ have a red line around 0, so the mean of those variables in the model are close to 0. However, since 'ment' is strange, we will take a log-transformation to it to try to deal with it. 2. According to the influential index plot, there are two influential points 186, 467. After removing them, the coefficients don't change a lot, they are not influential points. 3. In the last plot, for each predictor variable in the model, their component+residual centered at line 0. Hence, there’s no non-linearity result in our model.  
+We try a new mode  
+```{r}
+newModel <- glm(art ~ fem + mar + kid5 + phd + log(ment+1), family = "poisson", data = long)
+residualPlots(newModel, layout = c(1,3))
+infIndexPlot(newModel, var = c("cook","hat"))
+compareCoefs(newModel, update(newModel, subset = -c(81, 186,467)))
+crPlots(newModel)
+```
+Now we have following conclusions: 1. the residual plots for all predictor variables have a red line around 0, the mean of those variables in the model are close to 0. 2. For the possible three influential points, removing them will not change a lot and then no influential points. 3. In the last plot, for each predictor variable in the model, their component+residual centered at line 0. Hence, there’s no non-linearity result in our model.  
+After comparing the results, no conclusions alter but we can drop these three possible influetial points.  
+  
+(d) Refit Long's model allowing for overdispersion (using a quasi-Poisson or negative-binomial model). Does this make a difference to the results?
+
+```{r}
+model_fit4d1 <- glm(art ~ fem + mar + kid5 + phd + ment, family = "quasipoisson", data = long)
+summary(model_fit4d1)
+model_fit4d2 <- glm.nb(art ~ fem + mar + kid5 + phd + ment, data = long)
+summary(model_fit4d2)
+```
+Comparing the summary tables above, the coefficients for each predictor variables are closer, but the deviance for the negative-binomial model is much lower than the quasi-Poisson model. Hence, I prefer the negative-binomial model.

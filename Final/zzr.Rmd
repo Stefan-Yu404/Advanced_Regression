@@ -1,0 +1,227 @@
+---
+title: "Final Exam"
+author: "Zirui Zhou"
+date: ''
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+  html_document:
+    toc: yes
+    toc_float: yes
+    toc_depth: 2
+subtitle: STAT 353
+editor_options:
+  markdown:
+    wrap: 72
+urlcolor: blue
+linkcolor: red
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(readr)
+library(pscl)
+library(ggplot2)
+library(car)
+library(faraway)
+library(mgcv)
+library(arm)
+library(MASS)
+library(brant)
+#read in the data
+data <- read_csv("SSOCS(2017-2018)Data.csv")
+#names(data)[181:200]
+```
+
+# An Overview of the Problem
+
+In the United States, gun violence in K-12 schools has grown rapidly over the past two decades. For example, the mass shooting at Uvalde Elementary in Texas (2022) received a large degree of media attention. While the scale of this event was extreme, however, gun violence of smaller scales is more [common](https://news.google.com/search?q=gun%20school&hl=en-US&gl=US&ceid=US%3Aen) .
+
+As gun violence increases, researchers and policymakers continue to search for solutions. These include ideas like increasing monitoring of social and mental health of students, using metal detectors, stationing police in schools, among others. This question - What can we do to reduce gun violence? - provides the background for this exam.
+
+## The SSOCS Data
+
+"The School Survey on Crime and Safety (SSOCS) — a nationally representative survey of U.S. K–12 public schools — is managed by the National Center for Education Statistics (NCES), an agency within the U.S. Department of Education’s Institute of Education Sciences. SSOCS collects detailed information from public schools on the incidence, frequency, seriousness, and nature of violence affecting students and school personnel. SSOCS also collects information on the programs, practices, and policies that schools have in place to prevent and reduce crime. Data from this collection can be used to examine the relationship between school characteristics and violent crimes in regular public primary, middle, high, and combined schools."
+
+All of the information that you need to understand this data is provided. This includes:
+
+ * `SSOCS(2017-2018)Data.csv` : The data
+ * `ssocs codebook.pdf` : The code book
+
+Notice that in the code book, the `Appendix A` includes the actual survey and that `Appendix B` includes a list of all the variable names and definitions. Further information on the creation of composite variables (those ending in "18") can be found in `Chapter 5`.
+
+(Throughout, pay particular attention to data with values of "-1". These are purposeful skips and in many (but not all) cases may need to be re-coded to "0".)
+
+## This Exam 
+
+The purpose of this exam is to test your ability to put to use all that you have learned in STAT 353 in the context of real data, with a real question. This involves combining your understanding of regression concepts and theory with the implementation of these in code and clear interpretation to a lay audience. Be sure to convey what the results tell you, what assumptions they require, and any limitations in your results. 
+
+For this exam, we will focus in particular on two outcomes:
+
+  - `INCID18` : total incidents of any crime
+  - `DISFIRE18` : total use of firearm or explosive
+
+To simply the analysis, you can ignore the sampling weights / jackknife replicates.
+  
+**Finally, a strong exam is one that is judicious in what is presented (you can put materials in an Appendix), that explains the decisions and assumptions that were made and why, that explains the how the results should be interpreted, and that is clear in any limitations.**
+
+
+# Part I. Testing Hypotheses
+
+As stated above, researchers and policymakers have hypothesized and enacted a variety of policies meant to reduce crimes and gun violence in schools. In particular, they often argue that schools should include *security guards* in order to reduce crime and gun violence.
+
+For this part, answer the following questions:
+
+1. After exploring the two outcomes (`INCID18` and `DISFIRE18`) determine what type of regression model is appropriate for each (e.g., OLS). Explain which is best and why.
+
+```{r hypothesis1}
+# INCID18
+summary(data$INCID18)
+ggplot(data = data, aes(x = INCID18)) + 
+  geom_histogram(binwidth = 10, color = "white", fill = "steelblue") +
+  xlab("Total Incidents of Any Crime") + 
+  ylab("Count") +
+  ggtitle("Distribution of Total Incidents of Any Crime in US Schools (2017-2018)") +
+  theme_minimal()
+
+# DISFIRE18
+data$DISFIRE18 <- ifelse(data$DISFIRE18 == -1, 0, data$DISFIRE18)
+summary(data$DISFIRE18)
+ggplot(data = data, aes(x = DISFIRE18)) + 
+  geom_histogram(fill = "lightblue", color = "black", bins = 20) +
+  xlab("Total use of firearm or explosive") + 
+  ylab("Count") +
+  ggtitle("Distribution of Total use of firearm or explosive in US Schools (2017-2018)") +
+  theme_minimal()
+```
+The histogram shows that INCID18 is right-skewed, with a few schools experiencing a large number of incidents while most schools experience relatively few. This suggests that a OLS regression model might not be the best fit for this data, because it assumes a normally distributed error term. Instead, a count data regression model such as Poisson regression or Negative Binomial regression may be more appropriate for modeling the count of incidents. We need to test the overdispersion for the model to determine whether it is needed to use NB regression.
+
+Based on the summary statistics and histogram, the DISFIRE18 variable is heavily skewed and contains a few extreme values. The variable also contains a few distinct values (0, 1, 2, 3, 4, 5, 6, 81), which suggest that a linear regression model may not be appropriate. Therefore, a more appropriate model for DISFIRE18 may be a Poisson regression model or NB regression. Similarly, we need further information to test the overdispersion. 
+
+2. Are the presence of *security guards* (`SEC_FT18` and `SEC_PT18`)  associated with reductions in crime (`INCID18`) and gun violence (`DISFIRE18`)? Interpret the effects clearly in language that a non-statistician could understand. 
+
+```{r hypothesis2}
+# GLM for INCID18
+model_1 <- glm(INCID18 ~ SEC_FT18 + SEC_PT18, data = data, family = "poisson")
+(dispersiontest <- sum(model_1$deviance) / model_1$df.resid)
+model_1 <- glm.nb(INCID18 ~ SEC_FT18 + SEC_PT18, data = data)
+par(mfrow = c(1, 2))
+for ( i in 1:6) {
+  plot(model_1, which = i)
+}
+new_data_1 = data[-c(1127, 1310, 1503 ), ]
+nb_model_1 = glm.nb(INCID18 ~ SEC_FT18 + SEC_PT18, data = new_data_1)
+summary(nb_model_1)
+
+
+# GLM for DISFIRE18
+model_2 <- glm(DISFIRE18 ~ SEC_FT18 + SEC_PT18, data = data, family = "poisson")
+(dispersiontest <- sum(model_2$deviance) / model_2$df.resid)
+for ( i in 1:6) {
+  plot(model_2, which = i)
+}
+new_data_2 = data[-c(1127, 1328, 753 ),]
+poisson_model_2 = glm(DISFIRE18 ~ SEC_FT18 + SEC_PT18, data = new_data_2, family = "poisson")
+# Print summary of the model
+summary(poisson_model_2)
+```
+
+
+We initially used a statistical model called Poisson regression to analyze the number of incidents in INCID18, but we found out that the data had more variation than expected, indicating that the model was not suitable. Therefore, we used a different statistical model called negative binomial regression to address this issue. The new model gave us better results and a more accurate understanding of the data. We also carefully looked at the data and removed any unusual data points to ensure that our results were as accurate as possible.
+The result of the negative binomial regression shows that the presence of full-time security guards (SEC_FT18) and part-time security guards (SEC_PT18) are both significantly associated with an increase in the incidence of crime (INCID18). Specifically, for every one unit increase in the number of full-time security guards, there is a 14% increase in the incidence of crime, holding all other variables constant. Similarly, for every one unit increase in the number of part-time security guards, there is a 4% increase in the incidence of crime, holding all other variables constant. The model has a deviance of 37.12 and all coefficients are statistically significant.
+
+For DISFIRE18, we started by examining whether it showed overdispersion pattern using a statistical test. The result showed that there was no overdispersion, so we proceeded with the Poisson regression model to investigate the association between the presence of security guards (SEC_FT18 and SEC_PT18) and gun violence.
+The coefficient estimates show that the presence of SEC_FT18 is associated with a small increase in gun violence, while the presence of SEC_PT18 is associated with a significant decrease in gun violence. The intercept term is also significant, indicating that there is a baseline level of gun violence present regardless of the presence of security guards.
+
+3. To what extent do these effects differ in urban schools versus non-urban schools?
+
+```{r hypothesis3}
+new_data_1$URBAN = ifelse(new_data_1$FR_URBAN == 1, 1, 0 )
+new_data_2$URBAN = ifelse(new_data_1$FR_URBAN == 1, 1, 0 )
+model_3_1 = glm.nb(INCID18 ~ SEC_FT18 * URBAN + SEC_PT18 * URBAN, data = new_data_1)
+summary(model_3_1)
+
+model_3_2 <- glm.nb(DISFIRE18 ~ SEC_FT18 * URBAN + SEC_PT18 * URBAN, data = new_data_2)
+summary(model_3_2)
+```
+Before analysis, a new variable URBAN was created with "1" representing urban and "0" representing non-urban.
+
+First, we look at the model_3_1. For SEC_FT18:URBAN, the coefficient estimate is -0.036563, which indicates that the effect of SEC_FT18 on INCID18 is weaker in urban schools compared to non-urban schools.For URBAN:SEC_PT18, the coefficient estimate is -0.046699, which suggests that the effect of SEC_PT18 on INCID18 is also weaker in urban schools compared to non-urban schools, but the effect is not statistically significant at the 0.05 level.Overall, these results suggest that the effects of SEC_FT18 and SEC_PT18 on INCID18 differ somewhat between urban and non-urban schools. 
+
+Model 3_2 shows the relationship between the predictor variables and the response variable for DISFIRE18, taking into account the interaction effects between SEC_FT18 and URBAN, and SEC_PT18 and URBAN. The model suggests that the effect of SEC_FT18 on DISFIRE18 is slightly stronger in urban schools compared to non-urban schools, but this effect is not statistically significant (p-value = 0.445945). The effect of SEC_PT18 on DISFIRE18 is slightly stronger in non-urban schools compared to urban schools, but this effect is also not statistically significant (p-value = 0.827995). The intercept for DISFIRE18 is significantly lower in urban schools compared to non-urban schools (p-value = 0.176786), but this effect is not statistically significant at the 5% significance level. 
+
+4.  Do your analyses suggest that policymakers are correct that security guards reduce crime and gun violence? If so, explain why. If not, conduct additional analyses (using regression) that allow you to evaluate their claim and interpret your results. 
+
+```{r hypothesis4}
+summary(nb_model_1)
+summary(poisson_model_2)
+```
+
+(1) The negative binomial regression model nb_model_1 on INCID18 suggests that the claim made by policymakers that security guards reduce crime may not be accurate. The coefficients for both types of security guards, SEC_FT18 and SEC_PT18, are positive and statistically significant, indicating that having more security guards is associated with a higher incidence of crime and gun violence. However, it is important to consider that there may be other factors contributing to this relationship, such as schools with higher rates of crime and violence being more likely to hire more security guards. 
+
+(2) The poisson_model_2 using the outcome variable of gun violence shows that an increase in the number of full-time security guards is associated with an increase in the incidence of gun violence, while an increase in the number of part-time security guards is associated with a decrease in the incidence of gun violence. The negative coefficient for part-time security guards supports the claim that security guards can reduce gun violence, but the positive coefficient for full-time security guards contradicts the claim. It is possible that full-time security guards may be perceived as a more aggressive presence, leading to an increase in incidents of gun violence. 
+
+Overall, further research and analysis would be needed to fully understand the relationship between security guards and incidence of crime and gun violence in schools.
+
+# Part II. Predicting Crime
+
+Other researchers and policymakers would like to develop a model to predict crime (`INCID18`) based upon observable school characteristics. Their idea is that they could first predict schools that have a lot of crime and then put in place interventions that could reduce such crime. 
+
+For this part, perform the following tasks. 
+
+1. For your first model, use variables `C0532`, `C0534`, `C0536`, `C0538`, `C0560`, `C0562`, `C0568`, `FR_LVEL`, `FR_URBAN`, and `FR_SIZE` as predictor variables. Be sure to pay attention to non-linearities and interactions. (In addition to Appendix B, you can find more detailed explanation for the variables `C0532` to `C0568` on pages 80-81 of the code book, and the three variables `FR_LVEL`, `FR_URBAN`, and `FR_SIZE` on page 172). How well does this model perform? 
+
+
+```{r predict1}
+
+model_1 <- glm(INCID18 ~ C0532 + C0534 + C0536 + C0538 + C0560
+                    + C0562 + C0568 + FR_LVEL + FR_URBAN + FR_SIZE, data = data, family = "poisson")
+summary(model_1)
+(dispersiontest <- sum(model_1$deviance) / model_1$df.resid)
+nb_model_2 = glm.nb(INCID18 ~ C0532 + C0534  + C0536 + C0538 + C0560
+                    + C0562 + C0568 + FR_LVEL + FR_URBAN + FR_SIZE,  data = data)
+summary(nb_model_2)
+
+df <- data[, c("C0532", "C0534", "C0536", "C0538", "C0560", "C0562", "C0568", "FR_LVEL", "FR_URBAN", "FR_SIZE")]
+summary(df)
+
+nb_model_3 = glm.nb(INCID18 ~ C0532 + C0534 +  I(C0532 * C0534) + I(C0534 * C0536) + C0536 + C0538 + C0560
+                    + C0562 + I(C0560 * C0562) + C0568+FR_LVEL + FR_URBAN +  I(FR_SIZE^2),  data = data)
+summary(nb_model_3)
+
+# Summary of model
+```
+
+
+2. Create a new model that includes only those covariates that were statistically significant in (1), further refining this until all covariates in this model are statistically significant. How well does this model perfrom relative to Model (1)? 
+
+
+```{r predict2}
+nb_model_interaction = glm.nb(INCID18 ~ C0532 + C0534 + C0536 + I(C0534 * C0536) + C0538 + C0560
+                    + C0562 +FR_LVEL + FR_URBAN + FR_SIZE,  data = data)
+nb_model_full = glm.nb(INCID18 ~ C0532 + C0534  + C0536 + C0538 + C0560
+                    + C0562 + FR_LVEL + FR_URBAN + FR_SIZE,  data = data)
+nb_model_no560 = glm.nb(INCID18 ~ C0532 + C0534  + C0536 + C0538 
+                    + C0562 + I(C0534 * C0536) + FR_LVEL + FR_URBAN + FR_SIZE,  data = data)
+anova(nb_model_full, nb_model_interaction)
+anova(nb_model_no560, nb_model_interaction)
+summary(nb_model_interaction)
+```
+
+The model was modified by removing the predictor variable C0568 and adding the interaction term between C0534 and C0536.
+
+
+3.  Develop and implement an approach to build the best model possible that predicts the total number of crimes (incidents, `INCID18`). (In addition to the variables mentioned in the previous problem, you may consider other variables, but be sure to explain your thinking.) 
+
+    What is your final model and why do you think it is the best?  Be sure to clearly explain your approach in language a non-statistician could understand.
+
+
+```{r predict3}
+
+
+```
+
+4. Does your final model do a good job in predicting crime? Explain to a policymaker if and how they should properly use this model. 
+
+
